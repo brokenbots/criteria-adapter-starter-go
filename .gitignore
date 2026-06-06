@@ -1,3 +1,4 @@
 out/
 *.log
 .DS_Store
+/criteria-adapter-starter-go

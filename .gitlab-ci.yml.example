@@ -1,0 +1,41 @@
+# .gitlab-ci.yml.example — copy to .gitlab-ci.yml to publish from GitLab CI.
+#
+# Mirrors .github/workflows/publish.yml for users not on GitHub Actions: on a
+# tag push, build the adapter binary and publish it as a keyless-signed OCI
+# artifact via the `criteria` CLI. GitLab's OIDC `id_tokens` supplies
+# SIGSTORE_ID_TOKEN, which the CLI uses to sign keyless via Sigstore.
+#
+# A Go adapter and the criteria CLI share one toolchain image, so this is a
+# single job (no artifact hand-off needed).
+#
+# TEMPORARY: this builds the `criteria` CLI from source (pinned to CRITERIA_REF)
+# until the v2 release ships CLI binaries — then replace that step with a binary
+# download.
+
+stages:
+  - publish
+
+publish-adapter:
+  stage: publish
+  image: golang:1.26
+  rules:
+    - if: $CI_COMMIT_TAG
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
+  variables:
+    CRITERIA_REF: adapter-v2
+  script:
+    # Build the adapter binary.
+    - mkdir -p out
+    - go build -o out/adapter .
+    # TEMPORARY: build the criteria CLI from source until v2 ships release binaries.
+    - git clone --depth 1 --branch "$CRITERIA_REF" https://github.com/brokenbots/criteria.git /tmp/criteria
+    - (cd /tmp/criteria && go build -o /usr/local/bin/criteria ./cmd/criteria)
+    # Give oras the GitLab registry credentials (no docker daemon required).
+    - mkdir -p ~/.docker
+    - |
+      printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" \
+        "$(printf '%s:%s' "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')" \
+        > ~/.docker/config.json
+    - criteria adapter publish out/adapter --registry "$CI_REGISTRY_IMAGE:${CI_COMMIT_TAG#v}" --keyless

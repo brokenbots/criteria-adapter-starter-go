@@ -1,8 +1,10 @@
 name: Publish Adapter
 
 # On every tag push (v*), build the adapter binary and publish it as a signed
-# OCI artifact via the reusable brokenbots/publish-adapter action
-# (with_image: false — see the commented Dockerfile to opt into image publishing).
+# OCI artifact via the reusable brokenbots/publish-adapter action. The action
+# signs keyless by default (needs id-token: write, granted below). To also ship
+# a runnable container image, build + push it and pass its reference via the
+# action's `image:` input (see the commented Dockerfile).
 
 on:
   push:
@@ -50,7 +52,5 @@ jobs:
       - name: Publish
         uses: brokenbots/publish-adapter@v0
         with:
-          sdk: go
           binary: ${{ github.workspace }}/out/adapter
           registry: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ steps.ver.outputs.tag }}
-          with_image: "false"
