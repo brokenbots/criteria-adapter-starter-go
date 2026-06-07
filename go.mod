@@ -1,6 +1,6 @@
 module github.com/your-org/criteria-adapter-starter-go
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/brokenbots/criteria-adapter-proto v0.5.1
