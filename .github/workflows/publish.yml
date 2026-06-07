@@ -1,10 +1,9 @@
 name: Publish Adapter
 
-# On every tag push (v*), build the adapter binary and publish it as a signed
-# OCI artifact via the reusable brokenbots/publish-adapter action. The action
-# signs keyless by default (needs id-token: write, granted below). To also ship
-# a runnable container image, build + push it and pass its reference via the
-# action's `image:` input (see the commented Dockerfile).
+# On every tag push (v*), cross-compile the adapter for every supported platform,
+# lay the binaries out as bin/<os>/<arch>/<name>, and publish them as a single
+# multi-platform, signed OCI artifact via the reusable brokenbots/publish-adapter
+# action. The action signs keyless by default (needs id-token: write, below).
 
 on:
   push:
@@ -22,6 +21,11 @@ permissions:
   packages: write
   id-token: write # cosign keyless signing
 
+env:
+  # The published binary name; defaults to the repo name. Rename when you fork
+  # this starter (e.g. criteria-adapter-myadapter).
+  BIN: ${{ github.event.repository.name }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -30,12 +34,23 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.x"
+          go-version-file: go.mod
 
-      - name: Build adapter binary
+      - name: Cross-compile adapter binaries
+        # Pure-Go adapter: cross-compile every supported platform from one runner
+        # into artifact/bin/<os>/<arch>/. `criteria adapter publish` scans the
+        # bin/ tree under the directory it is given (artifact/) and packages all
+        # platforms into a single multi-platform OCI artifact.
         run: |
-          mkdir -p out
-          go build -o out/adapter .
+          set -euo pipefail
+          for platform in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            os="${platform%/*}"; arch="${platform#*/}"
+            outdir="artifact/bin/${os}/${arch}"
+            mkdir -p "$outdir"
+            echo "building ${platform}"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+              go build -trimpath -o "$outdir/${BIN}" .
+          done
 
       - name: Resolve version
         id: ver
@@ -52,5 +67,6 @@ jobs:
       - name: Publish
         uses: brokenbots/publish-adapter@v0
         with:
-          binary: ${{ github.workspace }}/out/adapter
+          # Directory containing the multi-platform bin/<os>/<arch>/ tree.
+          binary: ${{ github.workspace }}/artifact
           registry: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ steps.ver.outputs.tag }}

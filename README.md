@@ -68,3 +68,17 @@ for the full `ServeRemote` API.
 ## License
 
 MIT
+
+## Security & dependencies
+
+This starter ships the supply-chain baseline every Criteria adapter is expected
+to carry — see [SECURITY.md](SECURITY.md) and
+[docs/dependency-policy.md](docs/dependency-policy.md). The CI (`ci.yml`) runs a
+**blocking** osv-scanner gate plus a non-blocking freshness report; `publish.yml`
+ships a multi-platform signed OCI artifact. Reproduce the checks locally:
+
+```bash
+make vuln-scan      # osv-scanner — known-vulnerability gate (WS49)
+make deps-outdated  # go-mod-outdated — freshness report (WS50)
+make deps-majors    # gomajor — available major (/vN) upgrades
+```
