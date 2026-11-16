@@ -3,8 +3,8 @@ module github.com/your-org/criteria-adapter-starter-go
 go 1.26.11
 
 require (
-	github.com/brokenbots/criteria-adapter-proto v0.5.1
-	github.com/brokenbots/criteria-go-adapter-sdk v0.5.2
+	github.com/brokenbots/criteria-adapter-proto v0.8.0
+	github.com/brokenbots/criteria-go-adapter-sdk v0.7.0
 )
 
 require (
